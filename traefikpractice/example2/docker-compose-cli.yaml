@@ -1,0 +1,34 @@
+version: "3.3"
+services:
+  traefik:
+    image: "traefik:v2.5"
+    command:
+      #- "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    labels:
+      - "traefik.enable=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - traefik-public
+  whoami:
+    image: "traefik/whoami"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.myrouter.rule=Host(`traefik.example.com`) && Path(`/test`)"
+      - "traefik.http.routers.myrouter.entrypoints=web"
+      - "traefik.http.routers.myrouter.service=myrouter"
+      - "traefik.http.services.myrouter.loadbalancer.server.port=80"
+    networks:
+      - traefik-public
+
+networks:
+  traefik-public:
+    external: true

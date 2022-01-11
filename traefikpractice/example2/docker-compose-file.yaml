@@ -1,0 +1,26 @@
+version: "3.3"
+services:
+  traefik:
+    image: "traefik:v2.5"
+    labels:
+      - "traefik.enable=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik.yml:/etc/traefik/traefik.yml"
+    networks:
+      - traefik-public
+  whoami:
+    image: "traefik/whoami"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`traefik.example.com`) && Path(`/test`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+    networks:
+      - traefik-public
+
+networks:
+  traefik-public:
+    external: true
