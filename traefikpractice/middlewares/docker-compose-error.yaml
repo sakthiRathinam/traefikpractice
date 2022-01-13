@@ -1,0 +1,59 @@
+version: "3.3"
+services:
+  traefik:
+    image: "traefik:v2.5"
+    labels:
+      - "traefik.enable=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik.yml:/etc/traefik/traefik.yml"
+    networks:
+      - traefik-public
+  whoami:
+    image: "traefik/whoami"
+    labels:
+      #routers
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`traefik.example.com`) && Path(`/test`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.routers.whoami.service=whoami"
+      - "traefik.http.routers.whoami.middlewares=test-auth,gzip-compress,errorpages"
+      #services
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+      #middlewares
+      #basic auth middleware
+      - "traefik.http.middlewares.test-auth.basicauth.users=sakthi:$$apr1$$WnfwraYn$$p1Ezr9UDbHOTnx7x6h5EJ/,traefik:$$apr1$$Dql.yor3$$jp1RSOj6qJWfvoezsGwge1"
+      - ""
+      #user 1: traefik password:test
+      #user 2: sakthi password:test123
+      #create hash password echo $(htpasswd -nb traefik test) | sed -e s/\\$/\\$\\$/g
+      #gzip compress middleware
+      - "traefik.http.middlewares.gzip-compress.compress=true"
+      #custom error pages middleware
+      - "traefik.http.middlewares.errorpages.errors.status=400-599"
+      - "traefik.http.middlewares.errorpages.errors.service=error"
+      - "traefik.http.middlewares.errorpages.errors.query=/{status}.html"
+    networks:
+      - traefik-public
+    depends_on:
+     - error
+  error:
+    image: guillaumebriday/traefik-custom-error-pages
+    networks:
+      - traefik-public
+    labels:
+      # routers
+      - "traefik.enable=true"
+      - "traefik.http.routers.error.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.error.service=error"
+      - "traefik.http.routers.error.entrypoints=web"
+      # services
+      - "traefik.http.services.error.loadbalancer.server.port=80"
+    
+
+networks:
+  traefik-public:
+    external: true
