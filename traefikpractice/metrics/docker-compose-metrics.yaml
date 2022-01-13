@@ -1,0 +1,143 @@
+version: "3.3"
+services:
+  traefik:
+    image: "traefik:v2.5"
+    labels:
+      - "traefik.enable=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik-metrics.yml:/etc/traefik/traefik.yml"
+    networks:
+      - traefik-public
+  whoami:
+    image: "traefik/whoami"
+    labels:
+      #routers
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`traefik.example.com`) && Path(`/test`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.routers.whoami.service=whoami"
+      - "traefik.http.routers.whoami.middlewares=test-auth,gzip-compress,errorpages,request-ratelimit"
+      #services
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+      #middlewares
+      #basic auth middleware
+      - "traefik.http.middlewares.test-auth.basicauth.users=sakthi:$$apr1$$WnfwraYn$$p1Ezr9UDbHOTnx7x6h5EJ/,traefik:$$apr1$$Dql.yor3$$jp1RSOj6qJWfvoezsGwge1"
+      - ""
+      #user 1: traefik password:test
+      #user 2: sakthi password:test123
+      #create hash password echo $(htpasswd -nb traefik test) | sed -e s/\\$/\\$\\$/g
+      #gzip compress middleware
+      - "traefik.http.middlewares.gzip-compress.compress=true"
+      #custom error pages middleware
+      - "traefik.http.middlewares.errorpages.errors.status=400-599"
+      - "traefik.http.middlewares.errorpages.errors.service=error"
+      - "traefik.http.middlewares.errorpages.errors.query=/{status}.html"
+      #ratelimit middleware
+      - "traefik.http.middlewares.request-ratelimit.ratelimit.average=2"
+    networks:
+      - traefik-public
+    depends_on:
+     - error
+  website:
+    image: nginx:alpine
+    volumes:
+      - "./staticwebsite:/usr/share/nginx/html"
+    depends_on:
+      - traefik
+    labels:
+      #routers
+      - "traefik.enable=true"
+      - "traefik.http.routers.website.rule=Host(`sakthirathinam.in`)"
+      - "traefik.http.routers.website.entrypoints=web"
+      - "traefik.http.routers.website.service=website"
+      - "traefik.http.routers.website.middlewares=gzip-website,website-requests"
+        #services
+      - "traefik.http.services.website.loadbalancer.server.port=80"
+      #middlewares
+      #basic auth middleware
+      #- "traefik.http.middlewares.test-auth.basicauth.users=sakthi:$$apr1$$WnfwraYn$$p1Ezr9UDbHOTnx7x6h5EJ/,traefik:$$apr1$$Dql.yor3$$jp1RSOj6qJWfvoezsGwge1"
+      #user 1: traefik password:test
+      #user 2: sakthi password:test123
+      #create hash password echo $(htpasswd -nb traefik test) | sed -e s/\\$/\\$\\$/g
+      #gzip compress middleware
+      - "traefik.http.middlewares.gzip-website.compress=true"
+      #custom error pages middleware
+      #- "traefik.http.middlewares.errorpages.errors.status=400-599"
+      #- "traefik.http.middlewares.errorpages.errors.service=error"
+      #- "traefik.http.middlewares.errorpages.errors.query=/{status}.html"
+      #ratelimit middleware
+      - "traefik.http.middlewares.website-requests.ratelimit.average=100"
+
+    networks:
+      - traefik-public
+  error:
+    image: guillaumebriday/traefik-custom-error-pages
+    networks:
+      - traefik-public
+    labels:
+      # routers
+      - "traefik.enable=true"
+      - "traefik.http.routers.error.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.error.service=error"
+      - "traefik.http.routers.error.entrypoints=web"
+      # services
+      - "traefik.http.services.error.loadbalancer.server.port=80"
+  prometheus:
+    image: prom/prometheus:v2.22.1
+    networks:
+      - traefik-public
+    volumes:
+      - "./prometheus/:/etc/prometheus/"
+      - "./prometheus_data:/prometheus"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.localhost`)"
+      - "traefik.http.routers.prometheus.service=prometheus"
+      - "traefik.http.routers.prometheus.entrypoints=web"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+      restart_policy:
+        condition: on-failure
+  grafana:
+    image: grafana/grafana:7.3.1
+    networks:
+      - traefik-public
+    depends_on:
+      - prometheus
+    volumes:
+      - "./grafana_data:/var/lib/grafana"
+      - "./grafana/provisioning/:/etc/grafana/provisioning/"
+    env_file:
+      - "./env/grafana.env"
+    user: "104"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
+      - "traefik.http.routers.grafana.service=grafana"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    deploy:
+      placement:
+        constraints:
+          - node.rule == manager
+      restart_policy:
+        condition: on-failure
+
+
+    
+
+networks:
+  traefik-public:
+    external: true

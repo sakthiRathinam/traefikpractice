@@ -1,0 +1,62 @@
+
+################################################################
+# API and dashboard configuration
+################################################################
+api:
+  # Dashboard
+  #
+  #
+  dashboard: true
+  insecure: true
+
+################################################################
+# Docker configuration backend
+################################################################
+providers:
+  docker:
+    exposedByDefault: false
+################################################################
+# Traefik Logging
+################################################################
+log:
+  level: DEBUG
+accesslog:
+  # format: common  # common, json, logfmt
+  filePath: /var/log/traefik/access.log
+
+################################################################
+# Entrypoint
+################################################################
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+################################################################
+# Challenge TLS
+################################################################
+certificatesResolvers:
+  # TLS Challenge
+  # myresolver:
+  #   acme:
+  #     email: sakthiratnam050@gmail.com  
+  #     storage: acme.json
+  #     tlsChallenge: true
+        # # used during the challenge
+        # entryPoint: web
+  # HTTP challenge
+  myresolver:
+    acme:
+      email: sakthiratnam050@gmail.com 
+      storage: acme.json
+      httpChallenge:
+        entryPoint: web
+  #DNS challenge
+  # myresolver:
+  #   acme:
+  #     email: sakthiratnam050@gmail.com  
+  #     storage: acme.json
+  #     dnsChallenge:
+  #       provider: godaddy
+  #       delayBeforeCheck: 0

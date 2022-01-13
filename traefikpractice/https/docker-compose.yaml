@@ -1,0 +1,72 @@
+version: "3.3"
+services:
+  traefik:
+    image: "traefik:v2.5"
+    labels:
+      - "traefik.enable=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik.yml:/etc/traefik/traefik.yml"
+      # - "./letsencrypt:/letsencrypt"
+    networks:
+      - traefik-public
+  website:
+    image: nginx:alpine
+    volumes:
+      - "./staticwebsite:/usr/share/nginx/html"
+    depends_on:
+      - traefik
+    labels:
+      #routers
+      - "traefik.enable=true"
+      - "traefik.http.routers.website.rule=Host(`clinto.in`)"
+      - "traefik.http.routers.website.entrypoints=web"
+      - "traefik.http.routers.website.middlewares=web-redirectscheme"
+      - "traefik.http.routers.website-secure.rule=Host(`clinto.in`)"
+      - "traefik.http.routers.website-secure.entrypoints=websecure"
+      - "traefik.http.routers.website-secure.tls.certresolver=myresolver"
+      - "traefik.http.routers.website.service=website"
+      - "traefik.http.routers.website.middlewares=gzip-website"
+        #services
+      - "traefik.http.services.website.loadbalancer.server.port=80"
+      #middlewares
+      #basic auth middleware
+      #- "traefik.http.middlewares.test-auth.basicauth.users=sakthi:$$apr1$$WnfwraYn$$p1Ezr9UDbHOTnx7x6h5EJ/,traefik:$$apr1$$Dql.yor3$$jp1RSOj6qJWfvoezsGwge1"
+      #user 1: traefik password:test
+      #user 2: sakthi password:test123
+      #create hash password echo $(htpasswd -nb traefik test) | sed -e s/\\$/\\$\\$/g
+      #gzip compress middleware
+      - "traefik.http.middlewares.gzip-website.compress=true"
+      #custom error pages middleware
+      #- "traefik.http.middlewares.errorpages.errors.status=400-599"
+      #- "traefik.http.middlewares.errorpages.errors.service=error"
+      #- "traefik.http.middlewares.errorpages.errors.query=/{status}.html"
+      # #ratelimit middleware
+      # - "traefik.http.middlewares.website-requests.ratelimit.average=200"
+      #redirect middleware
+      # # Redirect Scheme HTTP -> HTTPS
+      - "traefik.http.middlewares.web-redirectscheme.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.web-redirectscheme.redirectscheme.permanent=true"
+
+    networks:
+      - traefik-public
+  error:
+    image: guillaumebriday/traefik-custom-error-pages
+    networks:
+      - traefik-public
+    labels:
+      # routers
+      - "traefik.enable=true"
+      - "traefik.http.routers.error.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.error.service=error"
+      - "traefik.http.routers.error.entrypoints=web"
+      # services
+      - "traefik.http.services.error.loadbalancer.server.port=80"
+    
+
+networks:
+  traefik-public:
+    external: true
