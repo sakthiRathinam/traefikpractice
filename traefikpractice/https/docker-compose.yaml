@@ -10,7 +10,7 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./traefik.yml:/etc/traefik/traefik.yml"
-      # - "./letsencrypt:/letsencrypt"
+      # - "./sslcerts:/certificates"
     networks:
       - traefik-public
   website:

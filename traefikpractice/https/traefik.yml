@@ -45,18 +45,18 @@ certificatesResolvers:
   #     tlsChallenge: true
         # # used during the challenge
         # entryPoint: web
-  # HTTP challenge
-  myresolver:
-    acme:
-      email: sakthiratnam050@gmail.com 
-      storage: acme.json
-      httpChallenge:
-        entryPoint: web
-  #DNS challenge
+  # # HTTP challenge
   # myresolver:
   #   acme:
-  #     email: sakthiratnam050@gmail.com  
+  #     email: sakthiratnam050@gmail.com 
   #     storage: acme.json
-  #     dnsChallenge:
-  #       provider: godaddy
-  #       delayBeforeCheck: 0
+  #     httpChallenge:
+  #       entryPoint: web
+  #DNS challenge
+  myresolver:
+     acme:
+       email: testemail07777@gmail.com 
+       storage: /certificates/acme.json
+       dnsChallenge:
+         provider: godaddy
+         delayBeforeCheck: 0
